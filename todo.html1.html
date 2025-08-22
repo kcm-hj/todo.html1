@@ -1,0 +1,223 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Mini To-Do List Girly</title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+<style>
+body { background: #ffe6f0; font-family: 'Segoe UI', sans-serif; }
+.card { border: none; border-radius: 1rem; box-shadow: 0 10px 25px rgba(0,0,0,.06); background: #fff0f6; }
+.task.done .task-text { text-decoration: line-through; opacity: .6; }
+.task .task-text { word-break: break-word; }
+.task .form-check-input { transform: scale(1.15); margin-top: .35rem; accent-color: #ff69b4; }
+.btn-primary { background-color: #ff69b4; border-color: #ff69b4; }
+.btn-outline-secondary { border-color: #ffb6c1; color: #ff69b4; }
+.btn-outline-secondary.active { background-color: #ffb6c1; color: white; }
+.list-group-item { border:0; border-bottom:1px solid rgba(0,0,0,.06); background: url('https://i.ibb.co/3N0r6sQ/sticker.png') no-repeat right 10px top 10px; background-size: 40px 40px; }
+.list-group-item:last-child { border-bottom: 0; }
+.empty-state { color: #ff69b4; font-style: italic; }
+</style>
+</head>
+<body>
+<div class="container py-5">
+  <div class="row justify-content-center">
+    <div class="col-12 col-md-10 col-lg-8">
+      <div class="card">
+        <div class="card-body p-4 p-md-5">
+          <div class="d-flex align-items-center gap-3 mb-3">
+            <i class="bi bi-check2-square fs-3 text-primary"></i>
+            <div>
+              <h1 class="h4 mb-0">Ma To-Do List</h1>
+              <small class="text-muted">Ajoute, termine, supprime. Tout est sauvegardé automatiquement.</small>
+            </div>
+          </div>
+
+          <!-- Add Task -->
+          <form id="addForm" class="row g-2 align-items-center mb-3" autocomplete="off">
+            <div class="col-12 col-sm">
+              <input id="taskInput" class="form-control form-control-lg" type="text" placeholder="Ex: Réviser C…" minlength="1" maxlength="200" required />
+            </div>
+            <div class="col-auto">
+              <select id="prioritySelect" class="form-select me-2">
+                <option value="high">Haute</option>
+                <option value="medium" selected>Moyenne</option>
+                <option value="low">Basse</option>
+              </select>
+            </div>
+            <div class="col-auto">
+              <select id="hourSelect" class="form-select me-2">
+                <option value="">Heure...</option>
+                <option value="06:00">06:00</option>
+                <option value="07:00">07:00</option>
+                <option value="08:00">08:00</option>
+                <option value="09:00">09:00</option>
+                <option value="10:00">10:00</option>
+                <option value="11:00">11:00</option>
+                <option value="12:00">12:00</option>
+                <option value="13:00">13:00</option>
+                <option value="14:00">14:00</option>
+                <option value="15:00">15:00</option>
+                <option value="16:00">16:00</option>
+                <option value="17:00">17:00</option>
+                <option value="18:00">18:00</option>
+                <option value="19:00">19:00</option>
+                <option value="20:00">20:00</option>
+                <option value="21:00">21:00</option>
+                <option value="22:00">22:00</option>
+                <option value="23:00">23:00</option>
+              </select>
+            </div>
+            <div class="col-auto">
+              <button class="btn btn-primary btn-lg" type="submit"><i class="bi bi-plus-lg me-1"></i>Ajouter</button>
+            </div>
+          </form>
+
+          <!-- Controls -->
+          <div class="d-flex flex-wrap gap-2 justify-content-between align-items-center mb-3">
+            <div class="btn-group" role="group" aria-label="Filtres">
+              <button class="btn btn-outline-secondary filter-btn active" data-filter="all" type="button">Tout</button>
+              <button class="btn btn-outline-secondary filter-btn" data-filter="active" type="button">Actives</button>
+              <button class="btn btn-outline-secondary filter-btn" data-filter="done" type="button">Terminées</button>
+            </div>
+            <div class="d-flex align-items-center gap-2">
+              <div class="input-group">
+                <span class="input-group-text"><i class="bi bi-search"></i></span>
+                <input id="searchInput" type="search" class="form-control" placeholder="Rechercher…">
+              </div>
+              <button id="clearDoneBtn" class="btn btn-outline-danger" type="button"><i class="bi bi-trash3 me-1"></i>Vider terminées</button>
+            </div>
+          </div>
+
+          <!-- List -->
+          <ul id="taskList" class="list-group mb-3" aria-live="polite" aria-relevant="all"></ul>
+
+          <div class="d-flex justify-content-between align-items-center small text-muted">
+            <div><span id="itemsLeft">0</span> à faire</div>
+            <button id="exportBtn" class="btn btn-sm btn-outline-secondary" type="button"><i class="bi bi-download me-1"></i>Exporter JSON</button>
+          </div>
+        </div>
+      </div>
+      <p class="text-center mt-3 small text-muted">Construit avec Bootstrap 5 & LocalStorage • Hors-ligne • Monopage</p>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+const STORAGE_KEY = 'todo.tasks.girly';
+let tasks = [];
+let currentFilter = 'all';
+let searchQuery = '';
+
+const addForm = document.getElementById('addForm');
+const taskInput = document.getElementById('taskInput');
+const prioritySelect = document.getElementById('prioritySelect');
+const hourSelect = document.getElementById('hourSelect');
+const taskList = document.getElementById('taskList');
+const itemsLeft = document.getElementById('itemsLeft');
+const filterButtons = document.querySelectorAll('.filter-btn');
+const searchInput = document.getElementById('searchInput');
+const clearDoneBtn = document.getElementById('clearDoneBtn');
+const exportBtn = document.getElementById('exportBtn');
+
+const uid = () => crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).slice(2);
+
+function save(){ localStorage.setItem(STORAGE_KEY, JSON.stringify(tasks)); }
+function load(){ tasks = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'); }
+
+function addTask(text, priority, hour){
+  const trimmed = text.trim();
+  if(!trimmed) return;
+  tasks.unshift({id:uid(), text:trimmed, done:false, priority, hour, createdAt:Date.now(), notified:false});
+  save();
+  render();
+}
+
+function toggleTask(id){ const t = tasks.find(t=>t.id===id); if(t){ t.done=!t.done; save(); render(); } }
+function deleteTask(id){ tasks = tasks.filter(t=>t.id!==id); save(); render(); }
+function updateTask(id,newText){ const t = tasks.find(t=>t.id===id); if(!t)return; const trimmed=newText.trim(); if(!trimmed){ deleteTask(id); return;} t.text=trimmed; save(); render(); }
+function clearDone(){ tasks = tasks.filter(t=>!t.done); save(); render(); }
+
+function applyFilters(list){
+  let out = list;
+  if(currentFilter==='active') out = out.filter(t=>!t.done);
+  if(currentFilter==='done') out = out.filter(t=>t.done);
+  if(searchQuery){ const q=searchQuery.toLowerCase(); out=out.filter(t=>t.text.toLowerCase().includes(q)); }
+  return out;
+}
+
+function render(){
+  const filtered = applyFilters(tasks.sort((a,b)=>{
+    if(!a.hour) return 1; if(!b.hour) return -1; return a.hour.localeCompare(b.hour);
+  }));
+  taskList.innerHTML = '';
+  if(filtered.length===0){ const li=document.createElement('li'); li.className='list-group-item py-4 text-center empty-state'; li.innerHTML='<i class="bi bi-inbox"></i> Aucune tâche ici.'; taskList.appendChild(li); }
+  else{ filtered.forEach(t=>taskList.appendChild(taskItem(t))); }
+  itemsLeft.textContent = tasks.filter(t=>!t.done).length;
+}
+
+function taskItem(t){
+  const li=document.createElement('li'); li.className='list-group-item task'; if(t.done) li.classList.add('done');
+  const row=document.createElement('div'); row.className='d-flex align-items-start gap-3';
+  const checkDiv=document.createElement('div'); checkDiv.className='form-check mt-1';
+  const checkbox=document.createElement('input'); checkbox.type='checkbox'; checkbox.className='form-check-input'; checkbox.id=`chk-${t.id}`; checkbox.checked=t.done;
+  checkbox.addEventListener('change',()=>toggleTask(t.id));
+  checkDiv.appendChild(checkbox);
+
+  const textDiv=document.createElement('div'); textDiv.className='flex-grow-1';
+  const label=document.createElement('label'); label.setAttribute('for',`chk-${t.id}`); label.className='task-text d-block';
+  label.textContent = (t.hour?`[${t.hour}] `:'') + t.text;
+  label.title = `Priorité: ${t.priority.charAt(0).toUpperCase()+t.priority.slice(1)}`;
+  label.addEventListener('dblclick', startInlineEdit);
+  function startInlineEdit(){
+    const input=document.createElement('input'); input.type='text'; input.className='form-control'; input.value=t.text; input.maxLength=200;
+    textDiv.replaceChild(input,label); input.focus(); input.selectionStart=input.value.length;
+    const commit=()=>updateTask(t.id,input.value); const cancel=()=>render();
+    input.addEventListener('keydown',e=>{ if(e.key==='Enter') commit(); if(e.key==='Escape') cancel(); });
+    input.addEventListener('blur',commit);
+  }
+  textDiv.appendChild(label);
+
+  const actions=document.createElement('div'); actions.className='d-flex align-items-center gap-1';
+  const editBtn=document.createElement('button'); editBtn.className='btn btn-sm btn-outline-secondary'; editBtn.title='Modifier'; editBtn.innerHTML='<i class="bi bi-pencil"></i>'; editBtn.addEventListener('click',()=>label.dispatchEvent(new Event('dblclick')));
+  const delBtn=document.createElement('button'); delBtn.className='btn btn-sm btn-outline-danger'; delBtn.title='Supprimer'; delBtn.innerHTML='<i class="bi bi-trash"></i>'; delBtn.addEventListener('click',()=>deleteTask(t.id));
+  actions.append(editBtn,delBtn);
+
+  row.append(checkDiv,textDiv,actions); li.appendChild(row); return li;
+}
+
+addForm.addEventListener('submit',e=>{
+  e.preventDefault();
+  addTask(taskInput.value, prioritySelect.value, hourSelect.value);
+  taskInput.value=''; hourSelect.value=''; taskInput.focus();
+});
+
+filterButtons.forEach(btn=>{ btn.addEventListener('click',()=>{ filterButtons.forEach(b=>b.classList.remove('active')); btn.classList.add('active'); currentFilter=btn.dataset.filter; render(); }); });
+searchInput.addEventListener('input',e=>{ searchQuery=e.target.value.trim(); render(); });
+clearDoneBtn.addEventListener('click',clearDone);
+exportBtn.addEventListener('click',()=>{
+  const blob=new Blob([JSON.stringify(tasks,null,2)],{type:'application/json'}); const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download='tasks.json'; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+});
+
+// === تنبيهات المهام حسب الساعة ===
+if ("Notification" in window && Notification.permission !== "granted") Notification.requestPermission();
+setInterval(()=>{
+  const now=new Date();
+  const currentHour=now.getHours().toString().padStart(2,'0')+":"+now.getMinutes().toString().padStart(2,'0');
+  tasks.forEach(t=>{
+    if(t.hour===currentHour && !t.notified){
+      if(Notification.permission==="granted") new Notification("تذكير مهمة",{body:t.text});
+      else alert("تذكير: "+t.text);
+      t.notified=true;
+      save();
+    }
+  });
+},60000);
+
+load();
+render();
+</script>
+</body>
+</html>
